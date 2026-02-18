@@ -1,35 +1,78 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import { AuthProvider, useAuth } from "./AuthContext";
+import LoginPage from "./pages/LoginPage";
+import CaseListPage from "./pages/CaseListPage";
+import CaseDetailPage from "./pages/CaseDetailPage";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+function Navbar() {
+  const { user, logout } = useAuth();
+  if (!user) return null;
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+    <nav className="navbar">
+      <Link to="/cases" className="navbar-brand">
+        Infusion Platform
+      </Link>
+      <div className="navbar-right">
+        <span className="navbar-role">
+          {user.role === "PROVIDER" ? "Provider" : "Infusion Admin"}
+        </span>
+        <span className="navbar-email">{user.email}</span>
+        <button className="btn btn-secondary btn-sm" onClick={logout}>
+          Sign Out
         </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </nav>
+  );
 }
 
-export default App
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="page">Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const { user } = useAuth();
+
+  return (
+    <div className="app-layout">
+      <Navbar />
+      <Routes>
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/cases" replace /> : <LoginPage />}
+        />
+        <Route
+          path="/cases"
+          element={
+            <ProtectedRoute>
+              <CaseListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cases/:id"
+          element={
+            <ProtectedRoute>
+              <CaseDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/cases" replace />} />
+      </Routes>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
