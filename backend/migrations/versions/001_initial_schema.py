@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSON
+from app.models.models import GUID
 
 revision: str = "001"
 down_revision: Union[str, None] = None
@@ -65,7 +65,7 @@ def upgrade() -> None:
     # Organizations
     op.create_table(
         "organizations",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", GUID, primary_key=True),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("type", org_type, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -74,11 +74,11 @@ def upgrade() -> None:
     # Users
     op.create_table(
         "users",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", GUID, primary_key=True),
         sa.Column("email", sa.String(255), unique=True, nullable=False),
         sa.Column("password_hash", sa.String(255), nullable=False),
         sa.Column("role", user_role, nullable=False),
-        sa.Column("org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("org_id", GUID, sa.ForeignKey("organizations.id"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_index("ix_users_email", "users", ["email"])
@@ -86,7 +86,7 @@ def upgrade() -> None:
     # Patients
     op.create_table(
         "patients",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", GUID, primary_key=True),
         sa.Column("first_name", sa.String(255), nullable=False),
         sa.Column("last_name", sa.String(255), nullable=False),
         sa.Column("dob", sa.Date, nullable=True),
@@ -98,8 +98,8 @@ def upgrade() -> None:
     # Providers
     op.create_table(
         "providers",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("org_id", GUID, sa.ForeignKey("organizations.id"), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("npi", sa.String(20), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -108,12 +108,12 @@ def upgrade() -> None:
     # Cases
     op.create_table(
         "cases",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("patient_id", UUID(as_uuid=True), sa.ForeignKey("patients.id"), nullable=True),
-        sa.Column("provider_org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
-        sa.Column("infusion_org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=True),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("patient_id", GUID, sa.ForeignKey("patients.id"), nullable=True),
+        sa.Column("provider_org_id", GUID, sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("infusion_org_id", GUID, sa.ForeignKey("organizations.id"), nullable=True),
         sa.Column("status", case_status, nullable=False, server_default="REFERRAL_RECEIVED"),
-        sa.Column("created_by_user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("created_by_user_id", GUID, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -121,8 +121,8 @@ def upgrade() -> None:
     # Prescriptions
     op.create_table(
         "prescriptions",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False, unique=True),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False, unique=True),
         sa.Column("drug_name", sa.String(255), nullable=True),
         sa.Column("dose", sa.String(100), nullable=True),
         sa.Column("frequency", sa.String(100), nullable=True),
@@ -135,8 +135,8 @@ def upgrade() -> None:
     # Insurance
     op.create_table(
         "insurance",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False, unique=True),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False, unique=True),
         sa.Column("payer_name", sa.String(255), nullable=True),
         sa.Column("member_id", sa.String(100), nullable=True),
         sa.Column("group_id", sa.String(100), nullable=True),
@@ -147,25 +147,25 @@ def upgrade() -> None:
     # Documents
     op.create_table(
         "documents",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False),
         sa.Column("file_name", sa.String(255), nullable=False),
         sa.Column("file_type", sa.String(50), nullable=True),
         sa.Column("storage_url", sa.Text, nullable=True),
-        sa.Column("uploaded_by_user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("uploaded_by_user_id", GUID, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Tasks
     op.create_table(
         "tasks",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False),
         sa.Column("type", task_type, nullable=False),
         sa.Column("status", task_status, nullable=False, server_default="PENDING"),
-        sa.Column("owner_user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("owner_user_id", GUID, sa.ForeignKey("users.id"), nullable=True),
         sa.Column("due_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("payload_json", JSON, nullable=True),
+        sa.Column("payload_json", sa.JSON, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -173,31 +173,31 @@ def upgrade() -> None:
     # Timeline events
     op.create_table(
         "timeline_events",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False),
         sa.Column("event_type", sa.String(100), nullable=False),
-        sa.Column("actor_user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
-        sa.Column("metadata_json", JSON, nullable=True),
+        sa.Column("actor_user_id", GUID, sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("metadata_json", sa.JSON, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Audit logs
     op.create_table(
         "audit_logs",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("actor_user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("actor_user_id", GUID, sa.ForeignKey("users.id"), nullable=True),
         sa.Column("action", sa.String(100), nullable=False),
         sa.Column("entity_type", sa.String(100), nullable=False),
-        sa.Column("entity_id", UUID(as_uuid=True), nullable=True),
-        sa.Column("metadata_json", JSON, nullable=True),
+        sa.Column("entity_id", GUID, nullable=True),
+        sa.Column("metadata_json", sa.JSON, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Financial clearances
     op.create_table(
         "financial_clearances",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False, unique=True),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False, unique=True),
         sa.Column("benefits_verified_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("cost_estimate_amount", sa.Numeric(10, 2), nullable=True),
         sa.Column("patient_acknowledged_cost", sa.Boolean, default=False),
@@ -210,8 +210,8 @@ def upgrade() -> None:
     # Pharmacy orders
     op.create_table(
         "pharmacy_orders",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False, unique=True),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False, unique=True),
         sa.Column("pushed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("ship_to", sa.Text, nullable=True),
         sa.Column("requested_arrival_date", sa.Date, nullable=True),
@@ -227,8 +227,8 @@ def upgrade() -> None:
     # Schedules
     op.create_table(
         "schedules",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("case_id", UUID(as_uuid=True), sa.ForeignKey("cases.id"), nullable=False, unique=True),
+        sa.Column("id", GUID, primary_key=True),
+        sa.Column("case_id", GUID, sa.ForeignKey("cases.id"), nullable=False, unique=True),
         sa.Column("date_time", sa.DateTime(timezone=True), nullable=False),
         sa.Column("location", sa.String(255), nullable=True),
         sa.Column("duration_minutes", sa.Integer, nullable=True),
@@ -252,9 +252,12 @@ def downgrade() -> None:
     op.drop_table("patients")
     op.drop_table("users")
     op.drop_table("organizations")
-    sa.Enum(name="fulfillment_status").drop(op.get_bind())
-    sa.Enum(name="task_status").drop(op.get_bind())
-    sa.Enum(name="task_type").drop(op.get_bind())
-    sa.Enum(name="case_status").drop(op.get_bind())
-    sa.Enum(name="user_role").drop(op.get_bind())
-    sa.Enum(name="org_type").drop(op.get_bind())
+    # Enum drops only needed for PostgreSQL, not SQLite
+    bind = op.get_bind()
+    if bind.dialect.name != "sqlite":
+        sa.Enum(name="fulfillment_status").drop(bind)
+        sa.Enum(name="task_status").drop(bind)
+        sa.Enum(name="task_type").drop(bind)
+        sa.Enum(name="case_status").drop(bind)
+        sa.Enum(name="user_role").drop(bind)
+        sa.Enum(name="org_type").drop(bind)

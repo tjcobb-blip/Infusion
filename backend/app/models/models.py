@@ -13,11 +13,32 @@ from sqlalchemy import (
     Date,
     Enum as SAEnum,
     JSON,
+    TypeDecorator,
+    CHAR,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+
+
+# Cross-database UUID type: uses CHAR(32) so it works on both PostgreSQL and SQLite
+class GUID(TypeDecorator):
+    """Platform-independent UUID type. Stores as CHAR(32) in SQLite."""
+
+    impl = CHAR(32)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            if isinstance(value, uuid.UUID):
+                return value.hex
+            return uuid.UUID(value).hex
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return uuid.UUID(value)
+        return value
 from app.models.enums import (
     UserRole,
     OrgType,
@@ -40,7 +61,7 @@ def new_uuid():
 class Organization(Base):
     __tablename__ = "organizations"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     name = Column(String(255), nullable=False)
     type = Column(SAEnum(OrgType, name="org_type"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
@@ -53,11 +74,11 @@ class Organization(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(SAEnum(UserRole, name="user_role"), nullable=False)
-    org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    org_id = Column(GUID, ForeignKey("organizations.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     organization = relationship("Organization", back_populates="users")
@@ -67,7 +88,7 @@ class User(Base):
 class Patient(Base):
     __tablename__ = "patients"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     first_name = Column(String(255), nullable=False)
     last_name = Column(String(255), nullable=False)
     dob = Column(Date, nullable=True)
@@ -82,8 +103,8 @@ class Patient(Base):
 class Provider(Base):
     __tablename__ = "providers"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
-    org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    id = Column(GUID, primary_key=True, default=new_uuid)
+    org_id = Column(GUID, ForeignKey("organizations.id"), nullable=False)
     name = Column(String(255), nullable=False)
     npi = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
@@ -95,15 +116,15 @@ class Provider(Base):
 class Case(Base):
     __tablename__ = "cases"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     patient_id = Column(
-        UUID(as_uuid=True), ForeignKey("patients.id"), nullable=True
+        GUID, ForeignKey("patients.id"), nullable=True
     )
     provider_org_id = Column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+        GUID, ForeignKey("organizations.id"), nullable=False
     )
     infusion_org_id = Column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
+        GUID, ForeignKey("organizations.id"), nullable=True
     )
     status = Column(
         SAEnum(CaseStatus, name="case_status"),
@@ -111,7 +132,7 @@ class Case(Base):
         default=CaseStatus.REFERRAL_RECEIVED,
     )
     created_by_user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        GUID, ForeignKey("users.id"), nullable=False
     )
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -146,9 +167,9 @@ class Case(Base):
 class Prescription(Base):
     __tablename__ = "prescriptions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     case_id = Column(
-        UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False, unique=True
+        GUID, ForeignKey("cases.id"), nullable=False, unique=True
     )
     drug_name = Column(String(255), nullable=True)
     dose = Column(String(100), nullable=True)
@@ -165,9 +186,9 @@ class Prescription(Base):
 class Insurance(Base):
     __tablename__ = "insurance"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     case_id = Column(
-        UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False, unique=True
+        GUID, ForeignKey("cases.id"), nullable=False, unique=True
     )
     payer_name = Column(String(255), nullable=True)
     member_id = Column(String(100), nullable=True)
@@ -182,13 +203,13 @@ class Insurance(Base):
 class Document(Base):
     __tablename__ = "documents"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
-    case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False)
+    id = Column(GUID, primary_key=True, default=new_uuid)
+    case_id = Column(GUID, ForeignKey("cases.id"), nullable=False)
     file_name = Column(String(255), nullable=False)
     file_type = Column(String(50), nullable=True)
     storage_url = Column(Text, nullable=True)
     uploaded_by_user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        GUID, ForeignKey("users.id"), nullable=False
     )
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
@@ -200,8 +221,8 @@ class Document(Base):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
-    case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False)
+    id = Column(GUID, primary_key=True, default=new_uuid)
+    case_id = Column(GUID, ForeignKey("cases.id"), nullable=False)
     type = Column(SAEnum(TaskType, name="task_type"), nullable=False)
     status = Column(
         SAEnum(TaskStatus, name="task_status"),
@@ -209,7 +230,7 @@ class Task(Base):
         default=TaskStatus.PENDING,
     )
     owner_user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+        GUID, ForeignKey("users.id"), nullable=True
     )
     due_at = Column(DateTime(timezone=True), nullable=True)
     payload_json = Column(JSON, nullable=True, default=dict)
@@ -224,11 +245,11 @@ class Task(Base):
 class TimelineEvent(Base):
     __tablename__ = "timeline_events"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
-    case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False)
+    id = Column(GUID, primary_key=True, default=new_uuid)
+    case_id = Column(GUID, ForeignKey("cases.id"), nullable=False)
     event_type = Column(String(100), nullable=False)
     actor_user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+        GUID, ForeignKey("users.id"), nullable=True
     )
     metadata_json = Column(JSON, nullable=True, default=dict)
     created_at = Column(DateTime(timezone=True), default=utcnow)
@@ -241,13 +262,13 @@ class TimelineEvent(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     actor_user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+        GUID, ForeignKey("users.id"), nullable=True
     )
     action = Column(String(100), nullable=False)
     entity_type = Column(String(100), nullable=False)
-    entity_id = Column(UUID(as_uuid=True), nullable=True)
+    entity_id = Column(GUID, nullable=True)
     metadata_json = Column(JSON, nullable=True, default=dict)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
@@ -258,9 +279,9 @@ class AuditLog(Base):
 class FinancialClearance(Base):
     __tablename__ = "financial_clearances"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     case_id = Column(
-        UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False, unique=True
+        GUID, ForeignKey("cases.id"), nullable=False, unique=True
     )
     benefits_verified_at = Column(DateTime(timezone=True), nullable=True)
     cost_estimate_amount = Column(Numeric(10, 2), nullable=True)
@@ -277,9 +298,9 @@ class FinancialClearance(Base):
 class PharmacyOrder(Base):
     __tablename__ = "pharmacy_orders"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     case_id = Column(
-        UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False, unique=True
+        GUID, ForeignKey("cases.id"), nullable=False, unique=True
     )
     pushed_at = Column(DateTime(timezone=True), nullable=True)
     ship_to = Column(Text, nullable=True)
@@ -303,9 +324,9 @@ class PharmacyOrder(Base):
 class Schedule(Base):
     __tablename__ = "schedules"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    id = Column(GUID, primary_key=True, default=new_uuid)
     case_id = Column(
-        UUID(as_uuid=True), ForeignKey("cases.id"), nullable=False, unique=True
+        GUID, ForeignKey("cases.id"), nullable=False, unique=True
     )
     date_time = Column(DateTime(timezone=True), nullable=False)
     location = Column(String(255), nullable=True)
