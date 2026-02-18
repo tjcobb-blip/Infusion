@@ -166,6 +166,11 @@ export default function CaseDetailPage() {
               </div>
             </div>
 
+            {/* Claim / Assign for unassigned cases */}
+            {isAdmin && !caseData.infusion_org_id && (
+              <ClaimCaseBar caseId={id!} userOrgId={user!.org_id} onClaimed={loadAll} />
+            )}
+
             {isAdmin && nextStatus && (
               <div style={{ marginTop: 12 }}>
                 <button
@@ -1152,6 +1157,70 @@ function DocumentsTab({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* ── Claim Case Bar ──────────────────────────────────────────────────── */
+function ClaimCaseBar({
+  caseId,
+  userOrgId,
+  onClaimed,
+}: {
+  caseId: string;
+  userOrgId: string;
+  onClaimed: () => void;
+}) {
+  const [claiming, setClaiming] = useState(false);
+  const [error, setError] = useState("");
+
+  const claim = async () => {
+    setClaiming(true);
+    setError("");
+    try {
+      await api.post(`/cases/${caseId}/assign-infusion-org`, {
+        infusion_org_id: userOrgId,
+      });
+      onClaimed();
+    } catch (err: unknown) {
+      const detail =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { detail?: string } } }).response
+              ?.data?.detail
+          : undefined;
+      setError(detail || "Failed to claim case.");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        background: "#fef9c3",
+        borderRadius: 6,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      <span style={{ color: "#92400e", fontWeight: 500, fontSize: 14 }}>
+        This case is unassigned. Claim it to start processing.
+      </span>
+      <button
+        className="btn btn-primary btn-sm"
+        onClick={claim}
+        disabled={claiming}
+      >
+        {claiming ? "Claiming..." : "Claim Case"}
+      </button>
+      {error && (
+        <span style={{ color: "var(--danger)", fontSize: 13, marginLeft: 8 }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }

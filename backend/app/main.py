@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, cases, documents, tasks, schedule, financial, pharmacy
+from app.api import auth, cases, documents, tasks, schedule, financial, pharmacy, organizations
 
 app = FastAPI(
     title="Infusion Referral Orchestration Platform",
@@ -30,3 +30,4 @@ app.include_router(tasks.router)
 app.include_router(schedule.router)
 app.include_router(financial.router)
 app.include_router(pharmacy.router)
+app.include_router(organizations.router)
