@@ -750,7 +750,7 @@ function PharmacyTab({
     pharmacy?.requested_arrival_date || ""
   );
   const [notes, setNotes] = useState(pharmacy?.pharmacy_notes || "");
-  const [fulfillmentStatus, setFulfillmentStatus] = useState(
+  const [fulfillmentStatus, setFulfillmentStatus] = useState<string>(
     pharmacy?.fulfillment_status || "NOT_STARTED"
   );
   const [ndc, setNdc] = useState(pharmacy?.ndc || "");
